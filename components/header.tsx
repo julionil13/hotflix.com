@@ -1,186 +1,133 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { Search, Menu, X, User } from "lucide-react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useRouter } from "next/navigation"
+import type { Session } from "@supabase/supabase-js"
+import { Search, User, LogOut, LayoutDashboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { LoginModal } from "@/components/auth/login-modal"
 import { SignUpModal } from "@/components/auth/signup-modal"
-import { supabase } from "@/lib/supabase/client"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
+import { useMobile } from "@/hooks/use-mobile"
 
-export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isLoginOpen, setIsLoginOpen] = useState(false)
-  const [isSignUpOpen, setIsSignUpOpen] = useState(false)
-  const [user, setUser] = useState<SupabaseUser | null>(null)
+// CORREÇÃO: O componente agora recebe a sessão como uma propriedade (prop).
+interface HeaderProps {
+  session: Session | null
+}
 
-  useEffect(() => {
-    // Get initial user
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-    })
+export function Header({ session }: HeaderProps) {
+  const [isLoginOpen, setLoginOpen] = useState(false)
+  const [isSignUpOpen, setSignUpOpen] = useState(false)
+  const router = useRouter()
+  const isMobile = useMobile()
+  const supabase = createClientComponentClient()
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-    })
+  // Usamos a sessão recebida para determinar o estado do utilizador.
+  const user = session?.user
 
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const handleSwitchToSignUp = () => {
-    setIsLoginOpen(false)
-    setIsSignUpOpen(true)
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.refresh()
   }
 
-  const handleSwitchToLogin = () => {
-    setIsSignUpOpen(false)
-    setIsLoginOpen(true)
-  }
+  const navLinks = [
+    { href: "/models", label: "Modelos" },
+    { href: "/categories", label: "Categoria" },
+    { href: "/trending", label: "Bombando" },
+    { href: "/#assinatura", label: "Assinatura" },
+  ]
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#141414]/95 backdrop-blur-sm border-b border-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="text-2xl font-black text-[#f40088]">HOTFLIX</div>
+      <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-sm z-50 p-4">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-8">
+            <Link href="/" className="text-3xl font-black text-[#f40088] tracking-wider">
+              HOTFLIX
             </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/models" className="text-white hover:text-[#f40088] transition-colors">
-                Models
-              </Link>
-              <Link href="/categories" className="text-white hover:text-[#f40088] transition-colors">
-                Categories
-              </Link>
-              <Link href="/trending" className="text-white hover:text-[#f40088] transition-colors">
-                Trending
-              </Link>
-              <Link href="/subscription" className="text-white hover:text-[#f40088] transition-colors">
-                Subscription
-              </Link>
-            </nav>
-
-            {/* Search and Profile */}
-            <div className="flex items-center space-x-4">
-              {/* Desktop Search */}
-              <div className="hidden md:flex items-center">
-                {isSearchOpen ? (
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="text"
-                      placeholder="Search content..."
-                      className="w-64 bg-[#2d2d2d] border-gray-600 text-white placeholder:text-gray-400"
-                      autoFocus
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsSearchOpen(false)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsSearchOpen(true)}
-                    className="text-gray-400 hover:text-white"
+            {!isMobile && (
+              <nav className="flex items-center space-x-5 text-sm">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="text-gray-300 hover:text-white transition-colors"
                   >
-                    <Search className="h-5 w-5" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Profile/Auth */}
-              {user ? (
-                <Link href="/my-account">
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </Link>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsLoginOpen(true)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <User className="h-5 w-5" />
-                </Button>
-              )}
-
-              {/* Mobile Menu Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="md:hidden text-gray-400 hover:text-white"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-              >
-                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-            </div>
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+            )}
           </div>
 
-          {/* Mobile Menu */}
-          {isMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-800">
-              <div className="flex flex-col space-y-4">
-                {/* Mobile Search */}
-                <Input
-                  type="text"
-                  placeholder="Search content..."
-                  className="bg-[#2d2d2d] border-gray-600 text-white placeholder:text-gray-400"
-                />
-
-                {/* Mobile Navigation */}
-                <nav className="flex flex-col space-y-3">
-                  <Link href="/models" className="text-white hover:text-[#f40088] transition-colors">
-                    Models
-                  </Link>
-                  <Link href="/categories" className="text-white hover:text-[#f40088] transition-colors">
-                    Categories
-                  </Link>
-                  <Link href="/trending" className="text-white hover:text-[#f40088] transition-colors">
-                    Trending
-                  </Link>
-                  <Link href="/subscription" className="text-white hover:text-[#f40088] transition-colors">
-                    Subscription
-                  </Link>
-
-                  {user ? (
-                    <Link href="/my-account" className="text-white hover:text-[#f40088] transition-colors">
-                      My Account
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={() => setIsLoginOpen(true)}
-                      className="text-white hover:text-[#f40088] transition-colors text-left"
-                    >
-                      Sign In
-                    </button>
-                  )}
-                </nav>
-              </div>
+          <div className="flex items-center space-x-4">
+            <div className="relative hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="search"
+                placeholder="Pesquisar..."
+                className="pl-10 bg-[#2d2d2d] border-gray-700 rounded-md"
+              />
             </div>
-          )}
+
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuItem onClick={() => router.push("/my-account")}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Minha Conta</span>
+                  </DropdownMenuItem>
+                  {/* A verificação de admin ainda precisa ser implementada com base no teu DB */}
+                  {/* <DropdownMenuItem onClick={() => router.push("/admin")}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>Painel Admin</span>
+                    </DropdownMenuItem> */}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button onClick={() => setLoginOpen(true)} className="bg-[#f40088] hover:bg-[#d1006f]">
+                Entrar
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Auth Modals */}
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onSwitchToSignUp={handleSwitchToSignUp} />
-
-      <SignUpModal isOpen={isSignUpOpen} onClose={() => setIsSignUpOpen(false)} onSwitchToLogin={handleSwitchToLogin} />
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSwitchToSignUp={() => {
+          setLoginOpen(false)
+          setSignUpOpen(true)
+        }}
+      />
+      <SignUpModal
+        isOpen={isSignUpOpen}
+        onClose={() => setSignUpOpen(false)}
+        onSwitchToLogin={() => {
+          setSignUpOpen(false)
+          setLoginOpen(true)
+        }}
+      />
     </>
   )
 }

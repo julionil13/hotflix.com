@@ -1,81 +1,50 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
 import { Header } from "@/components/header"
-import { HeroSection } from "@/components/hero-section"
-import { ContentGrid } from "@/components/content-grid"
-import { AccessPlans } from "@/components/access-plans"
 import { Footer } from "@/components/footer"
+import { Toaster } from "@/components/ui/sonner"
 
-export default async function HomePage() {
-  const supabase = createClient()
+const inter = Inter({ subsets: ["latin"] })
 
-  // Get featured content for hero section
-  const { data: featuredContent } = await supabase
-    .from("contents")
-    .select(`
-      *,
-      models (name, profile_image_url),
-      categories (name)
-    `)
-    .eq("is_featured", true)
-    .limit(1)
-    .single()
+export const metadata: Metadata = {
+  title: "Hotflix",
+  description: "Your premium streaming platform.",
+}
 
-  // Get trending content
-  const { data: trendingContent } = await supabase
-    .from("contents")
-    .select(`
-      *,
-      models (name),
-      categories (name)
-    `)
-    .order("view_count", { ascending: false })
-    .limit(8)
-
-  // Get new releases
-  const { data: newReleases } = await supabase
-    .from("contents")
-    .select(`
-      *,
-      models (name),
-      categories (name)
-    `)
-    .order("created_at", { ascending: false })
-    .limit(8)
-
-  // Get popular content
-  const { data: popularContent } = await supabase
-    .from("contents")
-    .select(`
-      *,
-      models (name),
-      categories (name)
-    `)
-    .order("view_count", { ascending: false })
-    .range(8, 15)
+// CORREÇÃO: Transformamos o RootLayout numa função assíncrona para obter a sessão.
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  // Obtém a sessão do utilizador do lado do servidor.
+  const supabase = createServerComponentClient({ cookies })
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
   return (
-    <div className="min-h-screen bg-[#141414] text-white">
-      <Header />
-
-      {featuredContent && <HeroSection content={featuredContent} />}
-
-      <main className="pb-20">
-        {trendingContent && trendingContent.length > 0 && (
-          <ContentGrid title="Trending Now" content={trendingContent} className="mt-8" />
-        )}
-
-        {newReleases && newReleases.length > 0 && (
-          <ContentGrid title="New Releases" content={newReleases} className="mt-12" />
-        )}
-
-        {popularContent && popularContent.length > 0 && (
-          <ContentGrid title="Popular This Week" content={popularContent} className="mt-12" />
-        )}
-
-        <AccessPlans className="mt-16" />
-      </main>
-
-      <Footer />
-    </div>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className={`${inter.className} bg-[#141414] text-white`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex flex-col min-h-screen">
+            {/* CORREÇÃO: Passamos a sessão obtida para o componente Header. */}
+            <Header session={session} />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+          <Toaster />
+        </ThemeProvider>
+      </body>
+    </html>
   )
 }

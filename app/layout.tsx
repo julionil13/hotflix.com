@@ -1,32 +1,47 @@
-import type React from "react"
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
+import { Inter } from "next/font/google"
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
+import { Toaster } from "@/components/ui/sonner"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Hotflix - Premium Streaming Platform",
-  description: "Premium streaming platform for exclusive sensual content. Sophisticated, secure, and discreet.",
-  generator: "v0.app",
+  title: "Hotflix",
+  description: "Your premium streaming platform.",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const supabase = createServerComponentClient({ cookies })
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
   return (
-    <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
-      </head>
-      <body className="bg-[#141414] text-white antialiased">{children}</body>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className={`${inter.className} bg-[#141414] text-white`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex flex-col min-h-screen">
+            <Header session={session} />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+          <Toaster />
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
